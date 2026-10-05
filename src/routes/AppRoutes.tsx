@@ -4,6 +4,7 @@ import ProtectedRoute from "../components/ProtectedRoute";
 import MainLayout from "../layouts/MainLayout";
 import LoginPage from "../pages/Login/LoginPage";
 import HomePage from "../pages/Home/HomePage";
+import RegisterPage from "../pages/Register/RegisterPage";
 
 export default function AppRoutes() {
     return (
@@ -11,6 +12,7 @@ export default function AppRoutes() {
             <AuthProvider>
                 <Routes>
                     <Route path="/login" element={<LoginPage />} />
+                    <Route path="/register" element={<RegisterPage />} />
                     <Route element={<ProtectedRoute />}>
                         <Route path="/" element={<MainLayout />}>
                             <Route index element={<HomePage />} />

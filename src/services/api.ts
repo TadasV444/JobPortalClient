@@ -10,47 +10,40 @@ function getStoredAccessToken(): string | null {
     return localStorage.getItem(ACCESS_KEY) ?? sessionStorage.getItem(ACCESS_KEY);
 }
 
-function authHeaders(base: Record<string, string>): Record<string, string> {
-    const token = getStoredAccessToken();
-    if (token) base["Authorization"] = `Bearer ${token}`;
-    return base;
+// Backend errors come in two shapes:  ApiResponse { message } or ASP.NET
+// validation ProblemDetails { title, errors: { Field: [msg] } }.
+function errorMessage(json: any, res: Response): string {
+    const validation = json?.errors && !Array.isArray(json.errors) ? Object.values(json.errors).flat()[0] : null;
+    return (validation as string) || json?.message?.trim() || json?.title || `${res.status} ${res.statusText}`;
 }
 
 // Backend wraps every response in ApiResponse<T>; we return the `data` field.
-export async function fetchData<T>(endpoint: string): Promise<T> {
+async function request<T>(method: string, endpoint: string, body?: unknown): Promise<T> {
+    const token = getStoredAccessToken();
+    const headers: Record<string, string> = { accept: "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    if (body !== undefined) headers["Content-Type"] = "application/json";
+
     const res = await fetch(`${API_BASE_URL}${endpoint}`, {
-        headers: authHeaders({ accept: "application/json" }),
+        method,
+        headers,
+        body: body === undefined ? undefined : JSON.stringify(body),
     });
+    const json = await res.json().catch(() => null);
 
-    if (res.status === 401) {
-        window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
-        throw new Error("Unauthorized");
-    }
-    if (!res.ok) throw new Error(`Failed to fetch ${endpoint}: ${res.status} ${res.statusText}`);
+    // Only an expired session if we actually sent a token; a 401 on login is bad credentials.
+    if (res.status === 401 && token) window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+    if (!res.ok) throw new Error(errorMessage(json, res));
 
-    const json = await res.json();
-    return json.data as T;
+    return json?.data as T;
 }
 
-// No 401 event here on purpose: a 401 during login is bad credentials, not an expired session.
-export async function postData<TResponse, TRequest = unknown>(
-    endpoint: string,
-    body: TRequest,
-): Promise<TResponse> {
-    const res = await fetch(`${API_BASE_URL}${endpoint}`, {
-        method: "POST",
-        headers: authHeaders({ "Content-Type": "application/json", accept: "application/json" }),
-        body: JSON.stringify(body),
-    });
-
-    if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(`Failed to post ${endpoint}: ${res.status} ${res.statusText} ${text}`);
-    }
-
-    const json = await res.json();
-    return json.data as TResponse;
-}
+export const fetchData = <T>(endpoint: string) => request<T>("GET", endpoint);
+export const postData = <TResponse, TRequest = unknown>(endpoint: string, body: TRequest) =>
+    request<TResponse>("POST", endpoint, body);
+export const putData = <TResponse, TRequest = unknown>(endpoint: string, body?: TRequest) =>
+    request<TResponse>("PUT", endpoint, body);
+export const deleteData = <T = boolean>(endpoint: string) => request<T>("DELETE", endpoint);
 
 export function setTokens(accessToken: string, refreshToken?: string, persist = true) {
     const store = persist ? localStorage : sessionStorage;
