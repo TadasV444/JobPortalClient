@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { ReactNode } from "react";
 import { HomeOutlined, LogoutOutlined } from "@ant-design/icons";
 import { Avatar, Dropdown, Layout, Menu, Space, Typography, theme } from "antd";
 import { Link, Outlet, useLocation } from "react-router-dom";
@@ -6,6 +7,11 @@ import { useAuth } from "../auth/AuthProvider";
 
 const { Header, Sider, Content, Footer } = Layout;
 const { Text } = Typography;
+
+// Sidebar entries; `roles` hides an entry from other roles (backend still enforces access).
+const NAV: { key: string; icon: ReactNode; label: string; roles?: string[] }[] = [
+    { key: "/", icon: <HomeOutlined />, label: "Home" },
+];
 
 export default function MainLayout() {
     const [collapsed, setCollapsed] = useState(false);
@@ -42,7 +48,9 @@ export default function MainLayout() {
                     theme="dark"
                     mode="inline"
                     selectedKeys={[location.pathname]}
-                    items={[{ key: "/", icon: <HomeOutlined />, label: <Link to="/">Home</Link> }]}
+                    items={NAV.filter((i) => !i.roles || i.roles.includes(user?.role ?? "")).map(
+                        ({ key, icon, label }) => ({ key, icon, label: <Link to={key}>{label}</Link> }),
+                    )}
                 />
             </Sider>
 

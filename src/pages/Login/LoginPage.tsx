@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Alert, Button, Card, Checkbox, Form, Input, Typography } from "antd";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/AuthProvider";
 
 type LoginForm = { email: string; password: string; remember: boolean };
@@ -53,6 +53,9 @@ export default function LoginPage() {
                         Log in
                     </Button>
                 </Form>
+                <Typography.Paragraph style={{ textAlign: "center", marginTop: 16, marginBottom: 0 }}>
+                    No account? <Link to="/register">Create one</Link>
+                </Typography.Paragraph>
             </Card>
         </div>
     );
